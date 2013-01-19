@@ -35,8 +35,9 @@ def format_datetime(obj):
     return None
 
 def write(content, destination):
-  mkdir_p(os.path.dirname(destination))
-  f = open(destination, 'w')
+  data_path = os.path.join(data_dir(), destination)     
+  mkdir_p(os.path.dirname(data_path))
+  f = open(data_path, 'w')
   f.write(content)
   f.close()
 
@@ -102,6 +103,8 @@ def unescape(text):
 
 
 ##### Downloading 
+#the os.getcwd() (current working directory) is for file system access in Cloud9IDE
+
 
 import scrapelib
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
@@ -145,48 +148,18 @@ def download(url, destination, force=False, options=None):
 
   return body
 
-# if email settings are supplied, email the text - otherwise, just print it
-def admin(body):
-  try:
-    if isinstance(body, Exception):
-      body = format_exception(body)
-
-    logging.error(body) # always print it
-
-    if config:
-      details = config.get('email', None)
-      if details:
-        send_email(body)
-    
-  except Exception as exception:
-    print "Exception logging message to admin, halting as to avoid loop"
-    print format_exception(exception)
-
-def format_exception(exception):
-  exc_type, exc_value, exc_traceback = sys.exc_info()
-  return "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-
-# this should only be called if the settings are definitely there
-def send_email(message):
-  settings = config['email']
-
-  # adapted from http://www.doughellmann.com/PyMOTW/smtplib/
-  msg = MIMEText(message)
-  msg.set_unixfrom('author')
-  msg['To'] = email.utils.formataddr(('Recipient', settings['to']))
-  msg['From'] = email.utils.formataddr((settings['from_name'], settings['from']))
-  msg['Subject'] = "%s - %i" % (settings['subject'], int(time.time()))
-
-  server = smtplib.SMTP(settings['hostname'])
-  try:
-    server.ehlo()
-    if settings['starttls'] and server.has_extn('STARTTLS'):
-      server.starttls()
-      server.ehlo()
-
-    server.login(settings['user_name'], settings['password'])
-    server.sendmail(settings['from'], [settings['to']], msg.as_string())
-  finally:
-    server.quit()
-
-  logging.info("Sent email to %s" % settings['to'])
+def flags():
+  options = {}
+  for arg in sys.argv[1:]:
+    if arg.startswith("--"):
+      if "=" in arg:
+        key, value = arg.split('=')
+      else:
+        key, value = arg, True
+      
+      key = key.split("--")[1]
+      if value == 'True': value = True
+      elif value == 'False': value = False
+      elif re.sub("\d+", "", value) == "": value = int(value)
+      options[key.lower()] = value
+  return options
