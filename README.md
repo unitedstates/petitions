@@ -14,9 +14,9 @@ pip install -r requirements.txt
 
 Options:
 
---max: maximum number of petitions to retrieve, in the order the appear on the White House site. Default is all of them
+`--max`: maximum number of petitions to retrieve, in the order the appear on the White House site. Default is all of them
 
---start: Which page to beginning collecting from. Petitions are paginated 20 to a page. Useful if the script is interrupted. Default is 1
+`--start`: Which page to beginning collecting from. Petitions are paginated 20 to a page. Useful if the script is interrupted. Default is 1
 
 Example:
 
