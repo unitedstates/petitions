@@ -1,7 +1,16 @@
-petitions
-=========
+# Petitions
 
-This Python scripts retrieves every open petition on the We The People site, found at https://petitions.whitehouse.gov/petitions
+This Python script retrieves every open petition on the [We The People](https://petitions.whitehouse.gov/petitions).
+
+## Quick setup
+
+It's recommended to make a virtualenv, then run:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Running
 
 Options:
 
@@ -11,7 +20,10 @@ Options:
 
 Example:
 
-    python petitions.py --max=10 --start=2
+```bash
+./scripts/petitions.py --max=10 --start=2
+```
 
-Coming soon:
- * Search twitter for petitions that have not yet reached the 150-signature threshold
+## Coming soon
+
+* Search Twitter for petitions that have not yet reached the 150-signature threshold
