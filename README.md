@@ -1,6 +1,6 @@
 # Petitions
 
-This Python script retrieves every open petition on the [We The People](https://petitions.whitehouse.gov/petitions).
+These Python scripts retrieve open petitions on the [We The People](https://petitions.whitehouse.gov/petitions) and scan Twitter for mentions of petitions not yet on the site.
 
 ## Quick setup
 
@@ -12,6 +12,7 @@ pip install -r requirements.txt
 
 ## Running
 
+### petitions.py
 Options:
 
 `--max`: maximum number of petitions to retrieve, in the order the appear on the White House site. Default is all of them
@@ -24,6 +25,17 @@ Example:
 ./scripts/petitions.py --max=10 --start=2
 ```
 
-## Coming soon
+### twitter.pt
+Options:
 
-* Search Twitter for petitions that have not yet reached the 150-signature threshold
+`--start`: Which page of Twitter search results to beginning collecting from. Tweets matching your query are paginated 100 to a page. Default is 1
+
+`--max`: maximum number of pages to retrieve, default is 10. 
+
+`--query`: phrase to submit to Twitter search. Default is "whitehouse petition"
+
+Example:
+
+```bash
+./scripts/twitter.py --query=obama petition --start=1 --max=5 
+```
