@@ -4,10 +4,8 @@ import argparse
 import json
 from datetime import datetime
 import scrapelib
-
 from lxml.html import etree
 from utils import log, download, write, log_dir
-
 
 #intialize scraper and parser
 s = scrapelib.Scraper(requests_per_minute=60, follow_robots=False)
@@ -15,7 +13,6 @@ parser = etree.HTMLParser()
 
 scrapelog = {
     "begin" : datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
-    "end": None,
     "signatures": {}
 }
 
@@ -50,33 +47,63 @@ def petitions(mx=None, start=1):
             #get uid for each petition from main div id
             path = petition.xpath("div/div/a/@href")[0]
             data = crawl(path, pid)
-            #if petition is dead:
-            if "created" not in data:
-                scrapelog["signatures"][path.split("/")[2]] = -1
-                continue            
-            scrapelog["signatures"][path.split("/")[2]] = data["signatures"]
-            write(json.dumps(data, indent=2, sort_keys=True), path.split("/")[2] + ".json")
             
-            hits += 1
-            if mx != -1 and hits >= mx:
-                return hits
+            #if petition is dead (unlikely if scanned from WH site directly, but you never know):
+            if data["status"] == "expired":
+                scrapelog["signatures"][path.split("/")[2]] = -1
+            elif data["status"] == "active":
+                scrapelog["signatures"][path.split("/")[2]] = data["signatures"]
+                write(json.dumps(data, indent=2, sort_keys=True), path.split("/")[2] + ".json")
+                hits += 1
+                if mx != -1 and hits >= mx:
+                    return hits
 
 
 #visit the page for each petition and get the vitals
 def crawl(path, pid=None):
     body = download("http://petitions.whitehouse.gov" + path, path.split('/')[2] + ".html")
     page = etree.parse(StringIO(body), parser)
-    raw_date = page.xpath("//div[@class='date']/text()")[0].strip()
+    #catch page text whether or not petition is still active
+    #http://stackoverflow.com/questions/5662404/how-can-i-select-an-element-with-multiple-classes-with-xpath    
+    text = "\n".join(page.xpath("//div[contains(concat(' ',@class,' '),' petition-detail')]/p/text()"))
+    
+    #check if expired
+    if "The petition you are trying to access has expired" in text:
+        return { "status": "expired" }
+    
+    #if raw_date not found, probably a bad link (or change in HTML, so we should be careful)
+    try:
+        raw_date = page.xpath("//div[@class='date']/text()")[0].strip()
+    except:
+        return { "status": "error", "reason": "no date" }
+        
     created = datetime.strptime(raw_date, "%b %d, %Y").strftime("%Y-%m-%d")
     signatures = page.xpath("//div[@class='num-block num-block2']/text()")
-    signatures = int(signatures[0].replace(",", ''))
-
+    
+    #indiciates possible response
+    if len(signatures) == 0:
+        signatures = page.xpath("//div[@class='num-block']/text()")        
+        response = page.xpath("//div[contains(concat(' ',@class,' '),' petition-response')]")
+        if response:
+            status = "answered"
+        else:
+            return { "status": "error", "reason": "no signatures"}
+    else:
+        status = "active"        
+    signatures = int(signatures[0].replace(",", ''))    
+    
     if not pid:
-        pid = page.xpath("//a[@class='load-next no-follow active']/@rel")[0]
+        #no pid if fewer than 20 signatures        
+        try:
+            pid = page.xpath("//a[@class='load-next no-follow active']/@rel")[0]
+        except:
+            pid = "N/A"
+        
     return {
         "pid": pid,
+        "status": status,
         "title": page.xpath("//h1[@class='title']/text()")[0].strip(),
-        "text": "\n".join(page.xpath("//div[@id='petitions-individual']/div/div/p/text()")),
+        "text": text,
         "tags": page.xpath("//div[@class='issues']/a/text()"),
         "created": created,
         "visited": datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
@@ -85,7 +112,6 @@ def crawl(path, pid=None):
     }
 
 def main():
-
     parser = argparse.ArgumentParser(description="Retrieve petitions from We The People")
     parser.add_argument("-m", "--max", metavar="INTEGER", dest="max", type=int, default=None,
                         help="maximum number of petitions to retrieve")
@@ -103,7 +129,7 @@ def main():
     
     #write log
     scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-    write(json.dumps(scrapelog, indent=2), "log-" + scrapelog["begin"] + ".json", log_dir())
+    write(json.dumps(scrapelog, indent=2), "log-wh-" + scrapelog["begin"] + ".json", log_dir())
 
 if __name__ == "__main__":
     main()
