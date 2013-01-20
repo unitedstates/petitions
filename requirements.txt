@@ -2,3 +2,5 @@ scrapelib
 ipython
 lxml>=2.2
 pytz
+argparse
+oauth2
