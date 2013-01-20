@@ -6,17 +6,24 @@ from datetime import datetime
 import scrapelib
 
 from lxml.html import etree
-from utils import log, download, write
+from utils import log, download, write, log_dir
 
 
 #intialize scraper and parser
 s = scrapelib.Scraper(requests_per_minute=60, follow_robots=False)
 parser = etree.HTMLParser()
 
+scrapelog = {
+    "begin" : datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+    "end": None,
+    "signatures": {}
+}
+
 def petitions(mx=None, start=1):
     if mx is None:
         mx = -1
     
+    #log objects for tracking signatures over time
     hits = 0
     
     #scan WH site, add any new petitions to DB
@@ -43,8 +50,13 @@ def petitions(mx=None, start=1):
             #get uid for each petition from main div id
             path = petition.xpath("div/div/a/@href")[0]
             data = crawl(path, pid)
-            #TO DO: add --fast flag for ignore existing petitions
+            #if petition is dead:
+            if "created" not in data:
+                scrapelog["signatures"][path.split("/")[2]] = -1
+                continue            
+            scrapelog["signatures"][path.split("/")[2]] = data["signatures"]
             write(json.dumps(data, indent=2, sort_keys=True), path.split("/")[2] + ".json")
+            
             hits += 1
             if mx != -1 and hits >= mx:
                 return hits
@@ -67,7 +79,7 @@ def crawl(path, pid=None):
         "text": "\n".join(page.xpath("//div[@id='petitions-individual']/div/div/p/text()")),
         "tags": page.xpath("//div[@class='issues']/a/text()"),
         "created": created,
-        "visited": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "visited": datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
         "signatures": signatures,
         "url": "http://petitions.whitehouse.gov" + path
     }
@@ -88,7 +100,10 @@ def main():
         parser.error("--start must be one or greater.")
 
     log("Found %i petitions" % (petitions(args.max, args.start)))
-    #search("whitehouse petition")
+    
+    #write log
+    scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    write(json.dumps(scrapelog, indent=2), "log-" + scrapelog["begin"] + ".json", log_dir())
 
 if __name__ == "__main__":
     main()

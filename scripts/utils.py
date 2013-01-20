@@ -31,19 +31,19 @@ def format_datetime(obj):
         return None
 
 
-def write(content, destination):
-    data_path = os.path.join(data_dir(), destination)
-    mkdir_p(os.path.dirname(data_path))
-    f = open(data_path, 'w')
+def write(content, destination, dir=None):
+    if not dir:
+        dir = data_dir()
+    path = os.path.join(dir, destination)
+    mkdir_p(os.path.dirname(path))
+    f = open(path, 'w')
     f.write(content)
     f.close()
-
 
 def read(destination):
     if os.path.exists(destination):
         with open(destination) as f:
             return f.read()
-
 
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
@@ -114,11 +114,13 @@ scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_
 def cache_dir():
     return os.getcwd() + "/cache"
 
-
 # uses config values if present
 def data_dir():
     return os.getcwd() + "/data"
 
+# uses config values if present
+def log_dir():
+    return os.getcwd() + "/log"
 
 def download(url, destination, force=False, options=None):
     if not options:
