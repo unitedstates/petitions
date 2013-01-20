@@ -16,7 +16,7 @@ scrapelog = {
     "signatures": {}
 }
 
-def petitions(mx=None, start=1):
+def petitions(start=1, mx=None):
     if mx is None:
         mx = -1
     
@@ -125,7 +125,7 @@ def main():
     if args.start < 1:
         parser.error("--start must be one or greater.")
 
-    log("Found %i petitions" % (petitions(args.max, args.start)))
+    log("Found %i petitions" % (petitions(args.start, args.max)))
     
     #write log
     scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
