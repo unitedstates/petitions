@@ -150,23 +150,3 @@ def download(url, destination, force=False, options=None):
         write(body, cache)
 
     return body
-
-
-def flags():
-    options = {}
-    for arg in sys.argv[1:]:
-        if arg.startswith("--"):
-            if "=" in arg:
-                key, value = arg.split('=')
-            else:
-                key, value = arg, True
-
-            key = key.split("--")[1]
-            if value == 'True':
-                value = True
-            elif value == 'False':
-                value = False
-            elif re.sub("\d+", "", value) == "":
-                value = int(value)
-            options[key.lower()] = value
-    return options

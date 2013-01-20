@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 from StringIO import StringIO
+import argparse
 import json
 import datetime
 import scrapelib
 
 from lxml.html import etree
-from utils import log, download, write, flags
+from utils import log, download, write
 
 
 #intialize scraper and parser
@@ -13,7 +14,11 @@ s = scrapelib.Scraper(requests_per_minute=60, follow_robots=False)
 parser = etree.HTMLParser()
 
 
-def petitions(mx=-1, start=1):
+def petitions(mx=None, start=1):
+
+    if mx is None:
+        mx = -1
+
     hits = 0
     #scan WH site, add any new petitions to DB
     #surely a better way to get indefinite number of results than to create a functionally infinite loop, then breaking it, but drawing a blank
@@ -70,9 +75,22 @@ def crawl(path, pid=None):
 
 
 def main():
-    start = flags().get('start', 1)
-    mx = flags().get('max', -1)
-    log("Found %i petitions" % (petitions(mx, start)))
+
+    parser = argparse.ArgumentParser(description="Retrieve petitions from We The People")
+    parser.add_argument("-m", "--max", metavar="INTEGER", dest="max", type=int, default=None,
+                        help="maximum number of petitions to retrieve")
+    parser.add_argument("-s", "--start", metavar="INTEGER", dest="start", type=int, default=1,
+                        help="starting page, 20 per page, default is 1")
+
+    args = parser.parse_args()
+
+    if args.max is not None and args.max < 1:
+        parser.error("How can I scrape less than one petition? You make no sense! --max must be one or greater.")
+
+    if args.start < 1:
+        parser.error("--start must be one or greater.")
+
+    log("Found %i petitions" % (petitions(args.max, args.start)))
 
 
 if __name__ == "__main__":
