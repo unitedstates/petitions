@@ -25,17 +25,17 @@ Example:
 ./scripts/petitions.py --max=10 --start=2
 ```
 
-### twitter.pt
+### twitter.py
 Options:
 
 `--start`: Which page of Twitter search results to beginning collecting from. Tweets matching your query are paginated 100 to a page. Default is 1
 
 `--max`: maximum number of pages to retrieve, default is 10. 
 
-`--query`: phrase to submit to Twitter search. Default is "whitehouse petition"
+`--query`: phrase to submit to Twitter search. Use '+' for spaces. Default is "whitehouse+petition"
 
 Example:
 
 ```bash
-./scripts/twitter.py --query=obama petition --start=1 --max=5 
+./scripts/twitter.py --query=obama+petition --start=1 --max=5 
 ```
