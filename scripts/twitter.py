@@ -14,7 +14,7 @@ from datetime import datetime
 search twitter for petitions, using the RESTful search API: https://dev.twitter.com/docs/api/1.1/get/search/tweets
 it's not necessary to authenticate these calls, but doing so may grant higher rate limits
 to authenticate, register a Twitter app to get OAuth keys: https://dev.twitter.com/apps/new
-then put the keys and access tokens in apikeys.json
+then put the keys and access tokens in keys.json, currently provided in the repo with blank values
 '''
 
 scrapelog = {
@@ -97,8 +97,8 @@ def main():
                         help="maximum pages of petitions to retrieve, default is 10, 100 per page")
     parser.add_argument("-s", "--start", metavar="INTEGER", dest="start", type=int, default=1,
                         help="starting page, 100 per page, default is 1")
-    parser.add_argument("-q", "--query", metavar="STRING", dest="query", type=str, default="whitehouse petition",
-                        help="The query for searching twitter for petition links, default is 'whitehouse petition'")
+    parser.add_argument("-q", "--query", metavar="STRING", dest="query", type=str, default="whitehouse+petition",
+                        help="The query for searching twitter for petition links, default is 'whitehouse+petition'")
     args = parser.parse_args()
 
     if args.max is not None and args.max < 1:
