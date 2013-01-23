@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-import oauth2 as oauth    
+import oauth2 as oauth
 import argparse
 import os
 import re
 import json
 import urllib
+import sys
 from urlparse import urlparse
 from petitions import crawl
 from utils import log, download, write, log_dir
@@ -22,10 +23,10 @@ scrapelog = {
     "signatures": {}
 }
 
-def search(query, start=1, mx=None): 
+def search(query, start=1, mx=None):
     if mx is None:
-        mx = 1000
-    
+        mx = 10
+    log ('Searching Twitter for petitions with the query '+ query +', starting from page '+ str(start) + ' with max pages ' +str(mx))
     hits = 0
     try:
         keys = json.load(open(os.getcwd() + '/scripts/keys.json', 'r'))
@@ -35,33 +36,34 @@ def search(query, start=1, mx=None):
             "CONSUMER_SECRET": "",
             "ACCESS_TOKEN": "",
             "ACCESS_TOKEN_SECRET": ""
-        }        
-        
+        }
+
     # Create your consumer with the proper key/secret.
     consumer = oauth.Consumer(key=keys["CONSUMER_KEY"], secret=keys["CONSUMER_SECRET"])
     token = oauth.Token(keys["ACCESS_TOKEN"],keys["ACCESS_TOKEN_SECRET"])
-    
+
     #list of urls we've visited to prevent duplicate calls, since RTs lead to many duplicate hits
     visited = []
-    
+
     # Create our client.
-    client = oauth.Client(consumer, token)    
- 
+    client = oauth.Client(consumer, token)
+
     for pg in range(start, start + mx):
         url="http://search.twitter.com/search.json?page=%d&q=%s&rpp=100&include_entities=true&result_type=mixed" % (pg, query.replace(" ", "%20"))
+        log ('Fetching page %i'  % pg)
         resp, content = client.request(url)
-        results = json.loads(content)    
+        results = json.loads(content)
         if 'results' not in results:
             break
-        
+
         for result in results['results']:
             for twurl in result['entities']['urls']:
                 #see if this looks familiar
                 if twurl['expanded_url'] in visited or twurl['url'] in visited:
-                    continue            
+                    continue
                 visited.append(twurl['expanded_url'])
                 visited.append(twurl['url'])
-    
+
                 #check if it's a WH petitions
                 parsed = urlparse(twurl['expanded_url'])
                 petition_path = None
@@ -85,11 +87,10 @@ def search(query, start=1, mx=None):
                     elif data["status"] == "active" or data["status"] == "answered":
                         scrapelog["signatures"][petition_path.split("/")[2]] = data["signatures"]
                         write(json.dumps(data, indent=2, sort_keys=True), petition_path.split("/")[2] + ".json")
-                        
- 
+
     #write log
-    scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-    write(json.dumps(scrapelog, indent=2), "log-twitter-" + scrapelog["begin"] + ".json", log_dir())
+    #scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    #write(json.dumps(scrapelog, indent=2), "log-twitter-" + scrapelog["begin"] + ".json", log_dir())
 
 def main():
     parser = argparse.ArgumentParser(description="Retrieve petitions from We The People")
@@ -107,13 +108,16 @@ def main():
     if args.start < 1:
         parser.error("--start must be one or greater.")
 
+    if not len(sys.argv) > 1:
+        log('Running with default values. Use --h to see options.')
+
     search(args.query, args.start, args.max)
 
     #write log
-    scrapelog["query"] = args.query    
+    scrapelog["query"] = args.query
     scrapelog["end"] = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
     write(json.dumps(scrapelog, indent=2), "log-tw-" + scrapelog["begin"] + ".json", log_dir())
-    log("Found %i petitions" % (len(scrapelog["signatures"])))
+    log("Done. Found total %i petitions" % (len(scrapelog["signatures"])))
 
 if __name__ == "__main__":
     main()
