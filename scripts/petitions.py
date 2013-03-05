@@ -41,19 +41,23 @@ def petitions(start=1, mx=None):
             return hits
         page = etree.parse(StringIO(resp['markup']), parser)
         #there are two links to each petition in the results, but can reduce to uniques with "nofollow"
-
-        for petition in page.xpath("body/div[@class]"):
+        
+        petitions = page.xpath("body/div[@class]")
+        if len(petitions) == 0:
+            return hits
+            
+        for petition in petitions:
             pid = petition.xpath("@id")[0].split('-')[1]
             #get uid for each petition from main div id
             path = petition.xpath("div/div/a/@href")[0]
             data = crawl(path, pid)
-            
+
             #if petition is dead (unlikely if scanned from WH site directly, but you never know):
             if data["status"] == "expired":
                 scrapelog["signatures"][path.split("/")[2]] = -1
             elif data["status"] == "active":
-                scrapelog["signatures"][path.split("/")[2]] = data["signatures"]
-                write(json.dumps(data, indent=2, sort_keys=True), path.split("/")[2] + ".json")
+                scrapelog["signatures"][path.split("/")[2]] = data["signature_count"]
+                write(json.dumps(data, indent=2, sort_keys=True), "scrape/petitions/" + path.split("/")[2] + ".json")
                 hits += 1
                 if mx != -1 and hits >= mx:
                     return hits
@@ -100,22 +104,22 @@ def crawl(path, pid=None):
             pid = "N/A"
         
     return {
-        "pid": pid,
+        "id": pid,
         "status": status,
         "title": page.xpath("//h1[@class='title']/text()")[0].strip(),
-        "text": text,
-        "tags": page.xpath("//div[@class='issues']/a/text()"),
+        "body": text,
+        "issues": page.xpath("//div[@class='issues']/a/text()"),
         "created": created,
         "visited": datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
-        "signatures": signatures,
+        "signature_count": signatures,
         "url": "http://petitions.whitehouse.gov" + path
     }
 
 def main():
     parser = argparse.ArgumentParser(description="Retrieve petitions from We The People")
-    parser.add_argument("-m", "--max", metavar="INTEGER", dest="max", type=int, default=None,
+    parser.add_argument("-m", "--max", metavar="MAX", dest="max", type=int, default=None,
                         help="maximum number of petitions to retrieve")
-    parser.add_argument("-s", "--start", metavar="INTEGER", dest="start", type=int, default=1,
+    parser.add_argument("-s", "--start", metavar="START", dest="start", type=int, default=1,
                         help="starting page, 20 per page, default is 1")
     args = parser.parse_args()
 
