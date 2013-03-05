@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import datetime
 import urllib, urllib2
 from itertools import combinations
 from collections import defaultdict 
@@ -74,7 +75,7 @@ def get_petitions(mx=-1, offset=0):
     return petitions
 
 #get every signature for a given petition
-def get_petition_signatures(pid):
+def get_petition_signatures(pid, write_all=False):
     limit = 1000
     offset = 0
     signatures = []
@@ -87,11 +88,33 @@ def get_petition_signatures(pid):
             signatures += resp["results"]
             offset += limit
             
-    if len(signatures) > 0:
+    if len(signatures) > 0 and write_all:
         write(json.dumps(signatures), "api/signatures/" + pid + ".json")
-        
-    return signatures
     
+    split_signatures(pid, signatures)
+    
+    return signatures
+
+def split_signatures(pid, signatures=None):
+    if not signatures:
+        signatures = json.load(open(os.getcwd() + "/data/api/signatures/" + pid + ".json", "r"))
+        
+    for signature in signatures:
+        signature['date'] = datetime.datetime.fromtimestamp(signature['created']).strftime("%y-%m-%d")
+        signature['time'] = datetime.datetime.fromtimestamp(signature['created']).strftime("%H:%M:%S")
+        #rm this needless field
+        if signature['type'] == "signature":
+            signature.pop("type")
+
+    dates = sorted(set(map(lambda x:x['date'], signatures)))
+    stats = { 'total': len(signatures), 'dates': [], 'last' : signatures[0]['created'] }
+    for day in dates:
+        sigs = [x for x in signatures if x['date'] == day]
+        stats['dates'].append((day, len(sigs)))
+        write(json.dumps(sigs), "api/signatures/" + pid + "/" + day + ".json")
+        
+    write(json.dumps(stats, indent=2), "api/signatures/" + pid + "/stats.json")
+
 def get_signatures(mx, offset, startat):
     petitions = [x for x in os.listdir("data/api/petitions/") if x[-5:] == ".json"]
     if startat and startat + ".json" in petitions:
