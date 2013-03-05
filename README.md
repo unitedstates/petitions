@@ -58,6 +58,7 @@ Retrieves signatures for the petitions found in ```data/api/petitions```. It's n
 
 + `--max`: maximum number of petitions for which to retrieve signatures. Default is all petitions in the directory
 + `--start`: The number of petitions offset from the first petition in the directory. Useful if the script is interrupted. Default is 0
++ `--startat`: The id of the petition on which to start. Overrides ```--start``` if id is found. Also useful if the script is interrupted. Default is 0
 
 Examples:
 
@@ -66,5 +67,5 @@ Examples:
 ```
 
 ```bash
-./scripts/whitehouse.py signatures --max=10 --start=5
+./scripts/whitehouse.py signatures --max=10 --startat=4f1b7d728d8c37d716000063
 ```

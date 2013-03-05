@@ -92,13 +92,19 @@ def get_petition_signatures(pid):
         
     return signatures
     
-def get_signatures(mx=-1, offset=0):
-    petitions = [x for x in os.listdir("data/api/petitions/") if x[-5:] == ".json"][offset:]
+def get_signatures(mx, offset, startat):
+    petitions = [x for x in os.listdir("data/api/petitions/") if x[-5:] == ".json"]
+    if startat and startat + ".json" in petitions:
+        offset = petitions.index(startat + ".json")
+        print offset
+    petitions = petitions[offset:]
+    
     if mx != -1:
         petitions = petitions[:mx]
-    print petitions
+        
     for filenm in petitions:
         petition = json.load(open("data/api/petitions/" + filenm))
+        print "Searching signatures for %s, expecting %i" % (petition['id'], petition['signature count'])
         signatures = get_petition_signatures(petition['id'])
         print "Found %i signatures for petition with id %s" % (len(signatures), petition['id'])
         
@@ -110,6 +116,9 @@ def main():
                         help="maximum number of petitions to retrieve")
     parser.add_argument("-s", "--start", metavar="INTEGER", dest="start", type=int, default=0,
                         help="starting page, 20 per page, default is 1")
+    parser.add_argument("-a", "--startat", dest="startat", type=str, default=None,
+                        help="if of the first petition to crawl, in leiu of --start")
+                        
     args = parser.parse_args()
 
     if args.max != -1 and args.max < 1:
@@ -121,7 +130,7 @@ def main():
     if args.task == "petitions":
         log("Found %i petitions" % (len(get_petitions(args.max, args.start))))
     elif args.task == "signatures":
-        get_signatures(args.max, args.start)
+        get_signatures(args.max, args.start, args.startat)
 
     else:
         parser.error("I don't recognize that task! I only recognize 'petitions' and 'signatures'")
