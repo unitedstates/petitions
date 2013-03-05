@@ -29,7 +29,7 @@ def search(query, start=1, mx=None):
     log ('Searching Twitter for petitions with the query '+ query +', starting from page '+ str(start) + ' with max pages ' +str(mx))
     hits = 0
     try:
-        keys = json.load(open(os.getcwd() + '/scripts/keys.json', 'r'))
+        keys = json.load(open(os.getcwd() + '/scripts/keys.json', 'r'))['twitter']
     except:
         keys = {
             "CONSUMER_KEY": "",
