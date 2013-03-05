@@ -57,7 +57,7 @@ def petitions(start=1, mx=None):
                 scrapelog["signatures"][path.split("/")[2]] = -1
             elif data["status"] == "active":
                 scrapelog["signatures"][path.split("/")[2]] = data["signature_count"]
-                write(json.dumps(data, indent=2, sort_keys=True), "scrape/petitions/" + path.split("/")[2] + ".json")
+                write(json.dumps(data, indent=2, sort_keys=True), "scrape/petitions/" + data['id'] + ".json")
                 hits += 1
                 if mx != -1 and hits >= mx:
                     return hits
