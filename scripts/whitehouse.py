@@ -44,9 +44,10 @@ def fetch_petitions(start,num):
         return {}
     return tmpData
 
-def fetch_signatures(pid, limit, offset):
+def fetch_signatures(pid, limit, offset, since_id=''):
     #/api/v1/petitions/petition_id/signatures.json?limit=100&offset=0
-    tmpURL = BASEURI + "/" + pid + "/signatures.json?limit=%d&offset=%d&" % (limit, offset) + "key=" + APIKEY 
+    tmpURL = BASEURI + "/" + pid + "/signatures.json?created_after=%i&limit=%d&offset=%d&" % (since_id, limit, offset) + "key=" + APIKEY 
+    print tmpURL
     tmpResponse = urllib2.urlopen(tmpURL).read()
     tmpData = json.loads(tmpResponse)
     return tmpData
@@ -80,8 +81,18 @@ def get_petition_signatures(pid, write_all=False):
     offset = 0
     signatures = []
     stop = False
+    
+    try: 
+        stats = json.load(open(os.getcwd() + "/data/api/signatures/" + pid + "/stats.json", "r"))
+        since_id = stats['last']
+    except Exception, e:
+        print e
+        since_id = ''
+
+    # NOTE: the since_id DOES NOT work at the moment. See https://github.com/WhiteHouse/hackathon/issues/66
+
     while not stop:
-        resp = fetch_signatures(pid, limit, offset)
+        resp = fetch_signatures(pid, limit, offset, since_id)
         if "results" not in resp or len(resp['results']) == 0:
             stop = True
         else:
@@ -107,7 +118,8 @@ def split_signatures(pid, signatures=None):
             signature.pop("type")
 
     dates = sorted(set(map(lambda x:x['date'], signatures)))
-    stats = { 'total': len(signatures), 'dates': [], 'last' : signatures[0]['created'] }
+    
+    stats = { 'total': len(signatures), 'dates': [], 'last' : max([x['created'] for x in signatures]) }
     for day in dates:
         sigs = [x for x in signatures if x['date'] == day]
         stats['dates'].append((day, len(sigs)))
