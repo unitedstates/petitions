@@ -31,6 +31,18 @@ if APIKEY == '':
 # Basic wrapper
 # h/t https://github.com/WhiteHouse/hackathon/blob/master/petitions-api-examples/pytition/pytition.py
 
+def fetch_petition(pid):
+    tmpURL = BASEURI + "/" + pid + ".json?key=" + APIKEY
+    print tmpURL
+    tmpResponse = urllib2.urlopen(tmpURL)
+    if tmpResponse.code != 200:
+        print "Error retrieving results from %s" % tmpURL
+    try:
+        tmpData = json.loads(tmpResponse.read())
+    except:
+        return {}
+    return tmpData["results"][0]
+
 def fetch_petitions(start,num):
     tmpURL = BASEURL + "key=" + APIKEY + "&limit=" + str(num) + "&offset=" + str(start)
     tmpResponse = urllib2.urlopen(tmpURL)
@@ -39,20 +51,20 @@ def fetch_petitions(start,num):
     try:
         tmpData = json.loads(tmpResponse.read())
     except:
-        print "Couldn't decode JSON from this:"
-        print tmpResponse
         return {}
     return tmpData
 
 def fetch_signatures(pid, limit, offset, since_id=''):
     #/api/v1/petitions/petition_id/signatures.json?limit=100&offset=0
-    tmpURL = BASEURI + "/" + pid + "/signatures.json?created_after=%i&limit=%d&offset=%d&" % (since_id, limit, offset) + "key=" + APIKEY 
+    tmpURL = BASEURI + "/" + pid + "/signatures.json?limit=%d&offset=%d&" % (limit, offset) + "key=" + APIKEY 
     print tmpURL
     tmpResponse = urllib2.urlopen(tmpURL).read()
     tmpData = json.loads(tmpResponse)
     return tmpData
 
 #load the ids for all open petitions
+#includes those that reached 25,000, but not those that failed in the allotted time
+#typically under 500 at a given time
 def get_petitions(mx=-1, offset=0):
     limit = 100
     stop = False
@@ -76,23 +88,39 @@ def get_petitions(mx=-1, offset=0):
     return petitions
 
 #get every signature for a given petition
-def get_petition_signatures(pid, write_all=False):
+#WH appears to choke calls with an offset over 70000, so this can take awhile for big petitions
+def get_petition_signatures(pid, write_all=False, overwrite=False):
+    #update petition info and get signature count
+    petition = fetch_petition(pid)
+    print petition
+    log("Updating signatures for %s. Expecting %i total." % (pid, petition['signature count']))
+
+    #see if we already have anything so far
+    if not overwrite:
+        try: 
+            stats = json.load(open(os.getcwd() + "/data/api/signatures/" + pid + "/stats.json", "r"))
+            log("Already have %i signatures." % stats["total"])
+            if stats["total"] >= petition["signature count"]:
+                log ("Looks like we have everything already")
+                return stats["total"]
+            else:
+                pass
+        except Exception, e:
+            print "No stats file found for petition %s. Downloading all signatures" % pid
+            
+    
     limit = 1000
     offset = 0
     signatures = []
     stop = False
-    
-    try: 
-        stats = json.load(open(os.getcwd() + "/data/api/signatures/" + pid + "/stats.json", "r"))
-        since_id = stats['last']
-    except Exception, e:
-        print e
-        since_id = ''
 
-    # NOTE: the since_id DOES NOT work at the moment. See https://github.com/WhiteHouse/hackathon/issues/66
+    
+    
+
+
 
     while not stop:
-        resp = fetch_signatures(pid, limit, offset, since_id)
+        resp = fetch_signatures(pid, limit, offset)
         if "results" not in resp or len(resp['results']) == 0:
             stop = True
         else:
@@ -105,6 +133,7 @@ def get_petition_signatures(pid, write_all=False):
     split_signatures(pid, signatures)
     
     return signatures
+    
 
 def split_signatures(pid, signatures=None):
     if not signatures:
@@ -118,8 +147,15 @@ def split_signatures(pid, signatures=None):
             signature.pop("type")
 
     dates = sorted(set(map(lambda x:x['date'], signatures)))
+    mostrecent = max([x['created'] for x in signatures])
     
-    stats = { 'total': len(signatures), 'dates': [], 'last' : max([x['created'] for x in signatures]) }
+    stats = {
+        'total': len(signatures),
+        'dates': [],
+        'last': datetime.datetime.fromtimestamp(mostrecent).strftime("%y-%m-%d"),
+        'laststamp': mostrecent
+    }
+    
     for day in dates:
         sigs = [x for x in signatures if x['date'] == day]
         stats['dates'].append((day, len(sigs)))
@@ -127,11 +163,11 @@ def split_signatures(pid, signatures=None):
         
     write(json.dumps(stats, indent=2), "api/signatures/" + pid + "/stats.json")
 
+#retrieve all signatures for specified range
 def get_signatures(mx, offset, startat):
     petitions = [x for x in os.listdir("data/api/petitions/") if x[-5:] == ".json"]
     if startat and startat + ".json" in petitions:
         offset = petitions.index(startat + ".json")
-        print offset
     petitions = petitions[offset:]
     
     if mx != -1:
@@ -153,20 +189,29 @@ def main():
                         help="starting page, 20 per page, default is 1")
     parser.add_argument("-a", "--startat", dest="startat", type=str, default=None,
                         help="if of the first petition to crawl, in leiu of --start")
-                        
-    args = parser.parse_args()
+    parser.add_argument("-i", "--id", dest="pid", type=str, default=None,
+                        help="the id of a single petition to crawl")
 
+    args = parser.parse_args()
+    
+    #HumanError catch
     if args.max != -1 and args.max < 1:
         parser.error("How can I scrape less than one petition? You make no sense! --max must be one or greater.")
-
     if args.start < 0:
         parser.error("--start must be zero or greater.")
-
+        
+    #function calls    
     if args.task == "petitions":
-        log("Found %i petitions" % (len(get_petitions(args.max, args.start))))
+        if args.pid:
+            petition = fetch_petition(args.pid)
+            log("Found data for %s" % args.pid)
+        else:
+            log("Found %i petitions" % (len(get_petitions(args.max, args.start))))
     elif args.task == "signatures":
-        get_signatures(args.max, args.start, args.startat)
-
+        if args.pid:
+            log("Found %i signatures for %s" % (get_petition_signatures(args.pid), args.pid))
+        else:
+            get_signatures(args.max, args.start, args.startat)
     else:
         parser.error("I don't recognize that task! I only recognize 'petitions' and 'signatures'")
 
